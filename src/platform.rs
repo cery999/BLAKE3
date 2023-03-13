@@ -2,7 +2,9 @@ use crate::{portable, CVWords, IncrementCounter, BLOCK_LEN};
 use arrayref::{array_mut_ref, array_ref};
 
 cfg_if::cfg_if! {
-    if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
+    if #[cfg(blake3_cuda_ffi)] {
+        pub const MAX_SIMD_DEGREE: usize = 1024 ;
+    } else if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
         cfg_if::cfg_if! {
             if #[cfg(blake3_avx512_ffi)] {
                 pub const MAX_SIMD_DEGREE: usize = 16;
@@ -22,7 +24,10 @@ cfg_if::cfg_if! {
 // allowed to use cmp::max, so we have to hardcode this additional constant
 // value. Get rid of this once cmp::max is a const fn.
 cfg_if::cfg_if! {
-    if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
+    if #[cfg(blake3_cuda_ffi)]{
+        pub const MAX_SIMD_DEGREE_OR_2: usize = 1024;
+    }
+    else if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
         cfg_if::cfg_if! {
             if #[cfg(blake3_avx512_ffi)] {
                 pub const MAX_SIMD_DEGREE_OR_2: usize = 16;
@@ -49,6 +54,8 @@ pub enum Platform {
     #[cfg(blake3_avx512_ffi)]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     AVX512,
+    #[cfg(blake3_cuda_ffi)]
+    CUDA,
     #[cfg(blake3_neon)]
     NEON,
 }
@@ -56,6 +63,12 @@ pub enum Platform {
 impl Platform {
     #[allow(unreachable_code)]
     pub fn detect() -> Self {
+        #[cfg(blake3_cuda_ffi)]
+        {
+            if cuda_detected() {
+                return Platform::CUDA;
+            }
+        }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             #[cfg(blake3_avx512_ffi)]
@@ -95,6 +108,8 @@ impl Platform {
             #[cfg(blake3_avx512_ffi)]
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Platform::AVX512 => 16,
+            #[cfg(blake3_cuda_ffi)]
+            Platform::CUDA => 1024,
             #[cfg(blake3_neon)]
             Platform::NEON => 4,
         };
@@ -128,6 +143,10 @@ impl Platform {
             Platform::AVX512 => unsafe {
                 crate::avx512::compress_in_place(cv, block, block_len, counter, flags)
             },
+            #[cfg(blake3_cuda_ffi)]
+            Platform::CUDA => unsafe {
+                crate::cuda::compress_in_place(cv, block, block_len, counter, flags)
+            },
             // No NEON compress_in_place() implementation yet.
             #[cfg(blake3_neon)]
             Platform::NEON => portable::compress_in_place(cv, block, block_len, counter, flags),
@@ -160,6 +179,11 @@ impl Platform {
             Platform::AVX512 => unsafe {
                 crate::avx512::compress_xof(cv, block, block_len, counter, flags)
             },
+            #[cfg(blake3_cuda_ffi)]
+            Platform::CUDA => unsafe {
+                crate::cuda::compress_xof(cv, block, block_len, counter, flags)
+            },
+
             // No NEON compress_xof() implementation yet.
             #[cfg(blake3_neon)]
             Platform::NEON => portable::compress_xof(cv, block, block_len, counter, flags),
@@ -255,6 +279,19 @@ impl Platform {
                     out,
                 )
             },
+            #[cfg(blake3_cuda_ffi)]
+            Platform::CUDA => unsafe {
+                crate::cuda::hash_many(
+                    inputs,
+                    key,
+                    counter,
+                    increment_counter,
+                    flags,
+                    flags_start,
+                    flags_end,
+                    out,
+                )
+            },
             // Assumed to be safe if the "neon" feature is on.
             #[cfg(blake3_neon)]
             Platform::NEON => unsafe {
@@ -310,6 +347,15 @@ impl Platform {
     pub fn avx512() -> Option<Self> {
         if avx512_detected() {
             Some(Self::AVX512)
+        } else {
+            None
+        }
+    }
+
+    #[cfg(blake3_cuda_ffi)]
+    pub fn cuda() -> Option<Self> {
+        if cuda_detected() {
+            Some(Self::CUDA)
         } else {
             None
         }
@@ -410,6 +456,17 @@ pub fn sse2_detected() -> bool {
         if is_x86_feature_detected!("sse2") {
             return true;
         }
+    }
+    false
+}
+
+#[cfg(blake3_cuda_ffi)]
+#[inline(always)]
+pub fn cuda_detected() -> bool {
+    // Static check, e.g. for building with target-cpu=native.
+    #[cfg(blake3_cuda_ffi)]
+    {
+        return true;
     }
     false
 }

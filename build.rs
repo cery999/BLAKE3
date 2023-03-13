@@ -187,7 +187,7 @@ fn build_avx512_c_intrinsics() {
 
 fn build_avx512_assembly() {
     // Build the assembly implementation for AVX-512. This is preferred, but it
-    // only supports x86_64.
+    // only supports x87_64.
     assert!(is_x86_64());
     println!("cargo:rustc-cfg=blake3_avx512_ffi");
     let mut build = new_build();
@@ -225,6 +225,18 @@ fn build_neon_c_intrinsics() {
     build.compile("blake3_neon");
 }
 
+fn build_cuda() {
+    println!("cargo:rustc-cfg=blake3_cuda_ffi");
+    // let mut build = new_build();
+    // build
+    //     .cuda(true)
+    //     .flag("-cudart=shared")
+    //     .flag("-gencode")
+    //     .flag("arch=compute_75,code=sm_75")
+    //     .file("cuda/blake3-cuda.cu")
+    //     .compile("libblake3_cuda.a");
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     if is_pure() && is_neon() {
         panic!("It doesn't make sense to enable both \"pure\" and \"neon\".");
@@ -252,6 +264,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             build_avx512_assembly();
         }
     }
+
+    build_cuda();
 
     if (is_arm() && is_neon()) || (!is_no_neon() && !is_pure() && is_aarch64()) {
         println!("cargo:rustc-cfg=blake3_neon");
