@@ -61,6 +61,7 @@ pub unsafe fn hash_many<const N: usize>(
 }
 
 pub mod ffi {
+    // #[link(name = "blake3_cuda", kind = "static")]
     extern "C" {
         pub fn blake3_compress_in_place_cuda(
             cv: *mut u32,
