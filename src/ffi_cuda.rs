@@ -1,6 +1,6 @@
 use crate::{CVWords, IncrementCounter, BLOCK_LEN, OUT_LEN};
 
-// Unsafe because this may only be called on platforms supporting AVX-512.
+// Unsafe because this may only be called on platforms supporting cuda.
 pub unsafe fn compress_in_place(
     cv: &mut CVWords,
     block: &[u8; BLOCK_LEN],
@@ -42,14 +42,18 @@ pub unsafe fn hash_many<const N: usize>(
     flags_end: u8,
     out: &mut [u8],
 ) {
+    dbg!("in rust wrapper call");
     // The Rust hash_many implementations do bounds checking on the `out`
     // array, but the C implementations don't. Even though this is an unsafe
     // function, assert the bounds here.
+    dbg!("{:?}, {:?}", out.len(), inputs.len() * OUT_LEN);
     assert!(out.len() >= inputs.len() * OUT_LEN);
+    
+    dbg!("{:?},{:?},{:?},{:?}, {:?}", inputs.len(), N/BLOCK_LEN, counter, N, key);
     ffi::blake3_hash_many_cuda(
         inputs.as_ptr() as *const *const u8,
-        inputs.len(),
-        N / BLOCK_LEN,
+        inputs.len(), 
+        N / BLOCK_LEN, 
         key.as_ptr(),
         counter,
         increment_counter.yes(),
@@ -61,7 +65,7 @@ pub unsafe fn hash_many<const N: usize>(
 }
 
 pub mod ffi {
-    // #[link(name = "blake3_cuda", kind = "static")]
+    #[link(name = "blake3_cuda", kind = "static")]
     extern "C" {
         pub fn blake3_compress_in_place_cuda(
             cv: *mut u32,
@@ -93,7 +97,7 @@ pub mod ffi {
     }
 }
 
-#[cfg(test)]
+// #[cfg(test)]
 mod test {
     use super::*;
 

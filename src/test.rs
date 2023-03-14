@@ -156,6 +156,7 @@ pub fn test_hash_many_fn(
                 &mut test_chunks_out,
             );
         }
+        dbg!("end call rust test function");
         for n in 0..NUM_INPUTS {
             #[cfg(feature = "std")]
             dbg!(n);

@@ -464,11 +464,7 @@ pub fn sse2_detected() -> bool {
 #[inline(always)]
 pub fn cuda_detected() -> bool {
     // Static check, e.g. for building with target-cpu=native.
-    #[cfg(blake3_cuda_ffi)]
-    {
-        return true;
-    }
-    false
+    return true;
 }
 
 #[inline(always)]

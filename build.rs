@@ -81,7 +81,7 @@ fn is_windows_gnu() -> bool {
 fn new_build() -> cc::Build {
     let mut build = cc::Build::new();
     if !is_windows_msvc() {
-        build.flag("-std=c11");
+        build.flag("-std=c++11");
     }
     build
 }
@@ -227,16 +227,17 @@ fn build_neon_c_intrinsics() {
 
 fn build_cuda() {
     println!("cargo:rustc-cfg=blake3_cuda_ffi");
-    // let mut build = new_build();
-    // build
-    //     .cuda(true)
-    //     .flag("-cudart=shared")
-    //     .flag("-gencode")
-    //     .flag("arch=compute_75,code=sm_75")
-    //     .file("cuda/blake3-cuda.cu")
-    //     .compile("libblake3_cuda.a");
-    // println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
-    // println!("cargo:rustc-link-lib=cudart");
+    let mut build = new_build();
+    build
+        .cuda(true)
+        .flag("-I/home/cery/cuda-samples-master/Common")
+        .flag("-cudart=shared")
+        .flag("-gencode")
+        .flag("arch=compute_75,code=sm_75")
+        .file("cuda_impl/blake3_cuda.cu")
+        .compile("libblake3_cuda.a");
+    println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
+    println!("cargo:rustc-link-lib=cudart");
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
