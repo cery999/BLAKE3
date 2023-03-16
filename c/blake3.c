@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "blake3.h"
 #include "blake3_impl.h"
@@ -34,7 +34,7 @@ INLINE void chunk_state_reset(blake3_chunk_state *self, const uint32_t key[8],
 }
 
 INLINE size_t chunk_state_len(const blake3_chunk_state *self) {
-  printf("return chunk_state_len : %lu\n",
+  printf("call chunk_state_len return : %lu\n",
          (BLAKE3_BLOCK_LEN * (size_t)self->blocks_compressed) +
              ((size_t)self->buf_len));
   return (BLAKE3_BLOCK_LEN * (size_t)self->blocks_compressed) +
@@ -161,15 +161,15 @@ INLINE void chunk_state_update(blake3_chunk_state *self, const uint8_t *input,
   }
 
   while (input_len > BLAKE3_BLOCK_LEN) {
-    printf("serial compress in place block: input_len: %zu, add chunk state "
-           "block_compress+1 \n",
-           input_len);
     blake3_compress_in_place(self->cv, input, BLAKE3_BLOCK_LEN,
                              self->chunk_counter,
                              self->flags | chunk_state_maybe_start_flag(self));
     self->blocks_compressed += 1;
     input += BLAKE3_BLOCK_LEN;
     input_len -= BLAKE3_BLOCK_LEN;
+    printf("serial compress in place block: input_len: %zu, add chunk state "
+           "block_compress+1 \n",
+           input_len);
   }
 
   printf("fill left input to buf and set buf_len\n");

@@ -11,18 +11,21 @@ int main(void) {
   blake3_hasher_init(&hasher);
 
   // Read input bytes from stdin.
-  unsigned char buf[65536];
-  while (1) {
-    ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
-    if (n > 0) {
-      blake3_hasher_update(&hasher, buf, n);
-    } else if (n == 0) {
-      break; // end of file
-    } else {
-      fprintf(stderr, "read failed: %s\n", strerror(errno));
-      exit(1);
-    }
-  }
+  /* unsigned char buf[65536]; */
+  /* while (1) { */
+  /*   ssize_t n = read(STDIN_FILENO, buf, sizeof(buf)); */
+  /*   if (n > 0) { */
+  /*     blake3_hasher_update(&hasher, buf, n); */
+  /*   } else if (n == 0) { */
+  /*     break; // end of file */
+  /*   } else { */
+  /*     fprintf(stderr, "read failed: %s\n", strerror(errno)); */
+  /*     exit(1); */
+  /*   } */
+  /* } */
+
+  unsigned char buf[180];
+  blake3_hasher_update(&hasher, buf, 180);
 
   // Finalize the hash. BLAKE3_OUT_LEN is the default output length, 32 bytes.
   uint8_t output[BLAKE3_OUT_LEN];
