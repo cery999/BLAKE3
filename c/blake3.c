@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "blake3.h"
 #include "blake3_impl.h"
@@ -544,13 +545,14 @@ void blake3_hasher_update(blake3_hasher *self, const void *input,
     // If we've filled the current chunk and there's more coming, finalize this
     // chunk and proceed. In this case we know it's not the root.
     if (input_len > 0) {
+      printf("update remain input\n");
       output_t output = chunk_state_output(&self->chunk);
       uint8_t chunk_cv[32];
       output_chaining_value(&output, chunk_cv);
       hasher_push_cv(self, chunk_cv, self->chunk.chunk_counter);
       chunk_state_reset(&self->chunk, self->key, self->chunk.chunk_counter + 1);
     } else {
-        printf("no input left\n");
+      printf("no input left\n");
       return;
     }
   }
@@ -571,6 +573,7 @@ void blake3_hasher_update(blake3_hasher *self, const void *input,
   while (input_len > BLAKE3_CHUNK_LEN) {
     size_t subtree_len = round_down_to_power_of_2(input_len);
     uint64_t count_so_far = self->chunk.chunk_counter * BLAKE3_CHUNK_LEN;
+    printf("subtree_len:%zu, count_so_far: %lu\n", subtree_len, count_so_far);
     // Shrink the subtree_len until it evenly divides the count so far. We know
     // that subtree_len itself is a power of 2, so we can use a bitmasking
     // trick instead of an actual remainder operation. (Note that if the caller
@@ -589,10 +592,12 @@ void blake3_hasher_update(blake3_hasher *self, const void *input,
     while ((((uint64_t)(subtree_len - 1)) & count_so_far) != 0) {
       subtree_len /= 2;
     }
+    printf("subtree_len:%zu, count_so_far: %lu\n", subtree_len, count_so_far);
     // The shrunken subtree_len might now be 1 chunk long. If so, hash that one
     // chunk by itself. Otherwise, compress the subtree into a pair of CVs.
     uint64_t subtree_chunks = subtree_len / BLAKE3_CHUNK_LEN;
     if (subtree_len <= BLAKE3_CHUNK_LEN) {
+      printf("subtree chunks is 1\n");
       blake3_chunk_state chunk_state;
       chunk_state_init(&chunk_state, self->key, self->chunk.flags);
       chunk_state.chunk_counter = self->chunk.chunk_counter;
@@ -604,6 +609,7 @@ void blake3_hasher_update(blake3_hasher *self, const void *input,
     } else {
       // This is the high-performance happy path, though getting here depends
       // on the caller giving us a long enough input.
+      printf("subtree chunks has 2\n");
       uint8_t cv_pair[2 * BLAKE3_OUT_LEN];
       compress_subtree_to_parent_node(input_bytes, subtree_len, self->key,
                                       self->chunk.chunk_counter,
@@ -624,6 +630,7 @@ void blake3_hasher_update(blake3_hasher *self, const void *input,
   // here, because hasher_push_chunk_cv already does its own merge loop, but it
   // simplifies blake3_hasher_finalize below.
   if (input_len > 0) {
+    printf("do remain update and finalize\n");
     chunk_state_update(&self->chunk, input_bytes, input_len);
     hasher_merge_cv_stack(self, self->chunk.chunk_counter);
   }
@@ -636,6 +643,7 @@ void blake3_hasher_finalize(const blake3_hasher *self, uint8_t *out,
 
 void blake3_hasher_finalize_seek(const blake3_hasher *self, uint64_t seek,
                                  uint8_t *out, size_t out_len) {
+  printf("finalize with seek:0, out_len:");
   // Explicitly checking for zero avoids causing UB by passing a null pointer
   // to memcpy. This comes up in practice with things like:
   //   std::vector<uint8_t> v;
@@ -646,6 +654,7 @@ void blake3_hasher_finalize_seek(const blake3_hasher *self, uint64_t seek,
 
   // If the subtree stack is empty, then the current chunk is the root.
   if (self->cv_stack_len == 0) {
+    printf("cv stack empty");
     output_t output = chunk_state_output(&self->chunk);
     output_root_bytes(&output, seek, out, out_len);
     return;
@@ -662,23 +671,31 @@ void blake3_hasher_finalize_seek(const blake3_hasher *self, uint64_t seek,
   if (chunk_state_len(&self->chunk) > 0) {
     cvs_remaining = self->cv_stack_len;
     output = chunk_state_output(&self->chunk);
+    printf("has remain chunk, set cvs_remaining: %d\n", self->cv_stack_len);
   } else {
     // There are always at least 2 CVs in the stack in this case.
     cvs_remaining = self->cv_stack_len - 2;
     output = parent_output(&self->cv_stack[cvs_remaining * 32], self->key,
                            self->chunk.flags);
+    printf("chunk_state is empty, as do lazy merge, there are two chunks , %d "
+           "is left, set left cv to parant cv\n",
+           self->cv_stack_len - 2);
   }
   while (cvs_remaining > 0) {
+    printf("cvs remain do output chain value: %zu remain", cvs_remaining);
     cvs_remaining -= 1;
     uint8_t parent_block[BLAKE3_BLOCK_LEN];
     memcpy(parent_block, &self->cv_stack[cvs_remaining * 32], 32);
+    printf("use chain value as cv and right cvs as message block\n");
     output_chaining_value(&output, &parent_block[32]);
     output = parent_output(parent_block, self->key, self->chunk.flags);
   }
+  printf("make output root bytes");
   output_root_bytes(&output, seek, out, out_len);
 }
 
 void blake3_hasher_reset(blake3_hasher *self) {
+  printf("reset cv stack\n");
   chunk_state_reset(&self->chunk, self->key, 0);
   self->cv_stack_len = 0;
 }
