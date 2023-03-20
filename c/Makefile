@@ -3,7 +3,7 @@
 
 NAME=blake3
 CC=gcc
-CFLAGS=-O3 -Wall -Wextra -std=c11 -pedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -fvisibility=hidden
+CFLAGS=-O3 -Wall -Wextra -std=c++11 -pedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -fvisibility=hidden
 LDFLAGS=-pie -Wl,-z,relro,-z,now
 TARGETS=
 ASM_TARGETS=

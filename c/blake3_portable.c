@@ -1,4 +1,6 @@
+#include "blake3.h"
 #include "blake3_impl.h"
+#include <stdio.h>
 #include <string.h>
 
 INLINE uint32_t rotr32(uint32_t w, uint32_t c) {
@@ -23,6 +25,7 @@ INLINE void round_fn(uint32_t state[16], const uint32_t *msg, size_t round) {
 
   // Mix the columns.
   g(state, 0, 4, 8, 12, msg[schedule[0]], msg[schedule[1]]);
+
   g(state, 1, 5, 9, 13, msg[schedule[2]], msg[schedule[3]]);
   g(state, 2, 6, 10, 14, msg[schedule[4]], msg[schedule[5]]);
   g(state, 3, 7, 11, 15, msg[schedule[6]], msg[schedule[7]]);
@@ -71,6 +74,11 @@ INLINE void compress_pre(uint32_t state[16], const uint32_t cv[8],
   state[13] = counter_high(counter);
   state[14] = (uint32_t)block_len;
   state[15] = (uint32_t)flags;
+  printf("message:\n");
+  for (auto i = 0; i < 64; i++) {
+    printf("%02x", ((uint8_t *)block_words)[i]);
+  }
+  printf("\n");
 
   round_fn(state, &block_words[0], 0);
   round_fn(state, &block_words[0], 1);
@@ -79,6 +87,11 @@ INLINE void compress_pre(uint32_t state[16], const uint32_t cv[8],
   round_fn(state, &block_words[0], 4);
   round_fn(state, &block_words[0], 5);
   round_fn(state, &block_words[0], 6);
+
+  for (int i = 0; i < 16; i++) {
+    printf("%d:%d,", i, state[i]);
+  }
+  printf("\n");
 }
 
 void blake3_compress_in_place_portable(uint32_t cv[8],
